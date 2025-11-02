@@ -34,9 +34,8 @@ else
     
     # Run backend in background
     echo "Starting FastAPI backend..."
-    cd backend && uvicorn main:app --host 0.0.0.0 --port 8000 &
+    uvicorn backend.main:app --host 0.0.0.0 --port 8000 &
     BACKEND_PID=$!
-    cd ..
     
     # Wait a bit for backend to start
     sleep 3

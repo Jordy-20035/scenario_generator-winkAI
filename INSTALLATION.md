@@ -72,13 +72,12 @@ mkdir uploads outputs
 
 **Вариант B: Ручной запуск**
 
-Терминал 1 (Backend):
+Терминал 1 (Backend) - из корневой директории проекта:
 ```bash
-cd backend
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
-Терминал 2 (Frontend):
+Терминал 2 (Frontend) - из корневой директории проекта:
 ```bash
 streamlit run frontend/app.py --server.port 8501
 ```

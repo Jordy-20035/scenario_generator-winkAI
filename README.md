@@ -61,13 +61,12 @@ python -m spacy download ru_core_news_sm
 python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords')"
 ```
 
-3. Запустите FastAPI сервер (в одном терминале):
+3. Запустите FastAPI сервер (в одном терминале, из корневой директории проекта):
 ```bash
-cd backend
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
-4. Запустите Streamlit приложение (в другом терминале):
+4. Запустите Streamlit приложение (в другом терминале, из корневой директории проекта):
 ```bash
 streamlit run frontend/app.py --server.port 8501
 ```

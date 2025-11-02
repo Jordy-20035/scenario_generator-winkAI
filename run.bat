@@ -35,7 +35,7 @@ if %errorlevel% == 0 (
     
     REM Start backend in new window
     echo Starting FastAPI backend...
-    start "FastAPI Backend" cmd /k "cd backend && uvicorn main:app --host 0.0.0.0 --port 8000"
+    start "FastAPI Backend" cmd /k "uvicorn backend.main:app --host 0.0.0.0 --port 8000"
     
     REM Wait a bit for backend to start
     timeout /t 3 /nobreak >nul
