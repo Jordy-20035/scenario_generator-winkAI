@@ -62,9 +62,13 @@ class TableGenerator:
         # Combined column for Объект / Подобъект / Синопсис
         if column == 'Объект / Подобъект / Синопсис':
             parts = []
-            obj = scene_data.get('location_object', '').strip()
-            sub_obj = scene_data.get('location_sub_object', '').strip()
-            synopsis_text = scene_data.get('text', '').strip() if 'text' in scene_data else ''
+            # Safely handle None values before calling strip()
+            obj_val = scene_data.get('location_object')
+            obj = str(obj_val).strip() if obj_val is not None else ''
+            sub_obj_val = scene_data.get('location_sub_object')
+            sub_obj = str(sub_obj_val).strip() if sub_obj_val is not None else ''
+            text_val = scene_data.get('text')
+            synopsis_text = str(text_val).strip() if text_val else ''
             
             # Clean up synopsis - remove scene headers and formatting
             if synopsis_text:
@@ -89,7 +93,7 @@ class TableGenerator:
         # Combined column for Массовка / Групповка
         if column == 'Массовка / Групповка':
             parts = []
-            extras = scene_data.get('extras', '')
+            extras = scene_data.get('extras') or ''
             if extras:
                 parts.append(f"Массовка: {extras}")
             # Групповка would need special extraction - leaving empty for now
@@ -108,8 +112,8 @@ class TableGenerator:
         # Combined column for Реквизит / Игровой транспорт / Животное
         if column == 'Реквизит / Игровой транспорт / Животное':
             parts = []
-            props = scene_data.get('props', '')
-            vehicles = scene_data.get('vehicles', '')
+            props = scene_data.get('props') or ''
+            vehicles = scene_data.get('vehicles') or ''
             # Животное would need special extraction
             
             if props:
@@ -122,7 +126,7 @@ class TableGenerator:
         # Combined column for Администрация / Спецэффект
         if column == 'Администрация / Спецэффект' or column == 'Спецэффект / Администрация':
             parts = []
-            sfx = scene_data.get('special_effects', '')
+            sfx = scene_data.get('special_effects') or ''
             # Администрация would need special extraction
             
             if sfx:
@@ -132,18 +136,32 @@ class TableGenerator:
         
         # Combined column for Операторская техника / LED-экраны
         if column == 'Операторская техника / LED-экраны':
-            equipment = scene_data.get('equipment', '')
+            equipment = scene_data.get('equipment') or ''
             if equipment:
                 return f"Операторская техника: {equipment}"
             return ''
         
-        # Individual column mappings
+        # Individual column mappings - safely handle None values
+        series_num = scene_data.get('series_number') or ''
+        scene_num = scene_data.get('scene_number') or ''
+        time_of_day = scene_data.get('time_of_day') or ''
+        int_nat = scene_data.get('interior_exterior') or ''
+        
+        # Handle characters - can be list or string or None
+        characters = scene_data.get('characters', '')
+        if characters is None:
+            characters = ''
+        elif isinstance(characters, list):
+            characters = ', '.join([str(c) for c in characters if c])
+        else:
+            characters = str(characters) if characters else ''
+        
         column_mapping = {
-            'Серия': scene_data.get('series_number', ''),
-            'Сцена': scene_data.get('scene_number', ''),
-            'Режим': scene_data.get('time_of_day', ''),
-            'Инт / нат': scene_data.get('interior_exterior', ''),
-            'Персонажи': ', '.join(scene_data.get('characters', [])) if isinstance(scene_data.get('characters'), list) else scene_data.get('characters', ''),
+            'Серия': str(series_num) if series_num else '',
+            'Сцена': str(scene_num) if scene_num else '',
+            'Режим': str(time_of_day) if time_of_day else '',
+            'Инт / нат': str(int_nat) if int_nat else '',
+            'Персонажи': characters,
             'Декорация': '',  # Would need special extraction
             'Каскадер / Трюк': '',  # Would need special extraction
         }
