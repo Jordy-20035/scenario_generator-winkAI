@@ -5,7 +5,20 @@ Supports multiple encodings: UTF-8, UTF-16, CP1251, KOI8-R, ISO-8859-5, MacRoman
 import os
 from typing import Optional
 import chardet
-import PyPDF2
+try:
+    import fitz  # PyMuPDF - preferred for better PDF parsing
+    HAS_PYMUPDF = True
+except ImportError:
+    HAS_PYMUPDF = False
+    fitz = None
+
+try:
+    import PyPDF2
+    HAS_PYPDF2 = True
+except ImportError:
+    HAS_PYPDF2 = False
+    PyPDF2 = None
+
 from docx import Document
 
 
@@ -37,25 +50,41 @@ class DocumentParser:
         return encoding_map.get(detected, 'utf-8')
     
     def parse_pdf(self, file_path: str) -> str:
-        """Extract text from PDF file."""
+        """Extract text from PDF file. Uses PyMuPDF if available, falls back to PyPDF2."""
         text_parts = []
         
-        try:
-            with open(file_path, 'rb') as file:
-                pdf_reader = PyPDF2.PdfReader(file)
+        # Try PyMuPDF first (better quality)
+        if HAS_PYMUPDF:
+            try:
+                doc = fitz.open(file_path)
+                for page in doc:
+                    text = page.get_text("text")
+                    if text:
+                        text_parts.append(text)
+                doc.close()
+                return '\n\n'.join(text_parts)
+            except Exception as e:
+                print(f"Warning: PyMuPDF failed, trying PyPDF2: {e}")
+        
+        # Fallback to PyPDF2
+        if HAS_PYPDF2:
+            try:
+                with open(file_path, 'rb') as file:
+                    pdf_reader = PyPDF2.PdfReader(file)
+                    
+                    for page_num, page in enumerate(pdf_reader.pages):
+                        try:
+                            page_text = page.extract_text()
+                            if page_text:
+                                text_parts.append(page_text)
+                        except Exception as e:
+                            print(f"Warning: Could not extract page {page_num + 1}: {e}")
                 
-                for page_num, page in enumerate(pdf_reader.pages):
-                    try:
-                        page_text = page.extract_text()
-                        if page_text:
-                            text_parts.append(page_text)
-                    except Exception as e:
-                        print(f"Warning: Could not extract page {page_num + 1}: {e}")
+                return '\n'.join(text_parts)
+            except Exception as e:
+                raise ValueError(f"Error reading PDF with PyPDF2: {str(e)}")
         
-        except Exception as e:
-            raise ValueError(f"Error reading PDF: {str(e)}")
-        
-        return '\n'.join(text_parts)
+        raise ValueError("No PDF parser available. Install PyMuPDF (pymupdf) or PyPDF2.")
     
     def parse_docx(self, file_path: str) -> str:
         """Extract text from DOCX file."""

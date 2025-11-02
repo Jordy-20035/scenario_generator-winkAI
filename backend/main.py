@@ -10,8 +10,14 @@ from typing import Optional, List, Dict, Any
 import uvicorn
 
 from backend.document_parser import DocumentParser
-from backend.scene_segmenter import SceneSegmenter
-from backend.element_extractor import ElementExtractor
+try:
+    from backend.scene_segmenter_v2 import SceneSegmenter
+except ImportError:
+    from backend.scene_segmenter import SceneSegmenter
+try:
+    from backend.element_extractor_v2 import ElementExtractor
+except ImportError:
+    from backend.element_extractor import ElementExtractor
 from backend.table_generator import TableGenerator
 
 app = FastAPI(title="Scenario Pre-Production Generator API")
