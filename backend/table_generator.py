@@ -3,7 +3,8 @@ Table generator module.
 Creates structured pre-production tables with customizable column presets.
 """
 import pandas as pd
-from typing import List, Dict, Optional
+import re
+from typing import Dict, List, Optional
 
 
 class TableGenerator:
@@ -61,16 +62,27 @@ class TableGenerator:
         # Combined column for Объект / Подобъект / Синопсис
         if column == 'Объект / Подобъект / Синопсис':
             parts = []
-            obj = scene_data.get('location_object', '')
-            sub_obj = scene_data.get('location_sub_object', '')
-            synopsis = scene_data.get('text', '')[:500] if 'text' in scene_data else ''  # First 500 chars
+            obj = scene_data.get('location_object', '').strip()
+            sub_obj = scene_data.get('location_sub_object', '').strip()
+            synopsis_text = scene_data.get('text', '').strip() if 'text' in scene_data else ''
+            
+            # Clean up synopsis - remove scene headers and formatting
+            if synopsis_text:
+                # Remove scene number patterns at the start
+                synopsis_text = re.sub(r'^[0-9\-А-ЯЁa-zA-Z]+[\.\)]\s*', '', synopsis_text)
+                # Remove script format headers like "ЧЕЛЮСКИН. КАЮТ-КОМПАНИЯ – НОЧЬ"
+                synopsis_text = re.sub(r'^[А-ЯЁ\s\-\.]+[–\-]\s*[А-ЯЁ]+\.?\s*', '', synopsis_text)
+                # Limit to first 300 characters and clean up
+                synopsis_text = synopsis_text[:300].strip()
+                # Remove extra whitespace
+                synopsis_text = re.sub(r'\s+', ' ', synopsis_text)
             
             if obj:
                 parts.append(f"Объект: {obj}")
             if sub_obj:
                 parts.append(f"Подобъект: {sub_obj}")
-            if synopsis:
-                parts.append(f"Синопсис: {synopsis}")
+            if synopsis_text:
+                parts.append(f"Синопсис: {synopsis_text}")
             
             return '\n'.join(parts) if parts else ''
         

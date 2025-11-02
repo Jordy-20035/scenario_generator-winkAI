@@ -135,53 +135,89 @@ class ElementExtractor:
     
     def extract_location(self, text: str) -> Dict[str, Optional[str]]:
         """Extract location (object and sub-object) from scene text."""
-        locations = []
-        
-        # Use Natasha for NER to find location names if available
-        if self.natasha_available and self.segmenter and self.morph_tagger and self.ner_tagger:
-            try:
-                doc = Doc(text)
-                doc.segment(self.segmenter)
-                doc.tag_morph(self.morph_tagger)
-                doc.tag_ner(self.ner_tagger)
-                
-                for span in doc.spans:
-                    if span.type == 'LOC':  # Location entity
-                        locations.append(span.text)
-            except Exception as e:
-                print(f"Warning: Natasha NER failed: {e}")
-        
-        # Also look for location keywords
-        text_lower = text.lower()
-        location_parts = []
-        
-        # Common location patterns
-        location_patterns = [
-            r'([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)*)\s*[\.:]',  # City names followed by punctuation
-            r'(кабинет|офис|комната|дом|квартира|клуб|кафе|ресторан)',
-            r'(улица|площадь|парк|сквер)',
-            r'([А-ЯЁ][а-яё]+\s+ул\.)',  # Street names
-        ]
-        
-        for pattern in location_patterns:
-            matches = re.findall(pattern, text, re.IGNORECASE)
-            location_parts.extend(matches)
-        
         object_location = None
         sub_object = None
         
-        if locations:
-            object_location = locations[0] if len(locations) > 0 else None
-            sub_object = locations[1] if len(locations) > 1 else None
+        # Script format patterns (e.g., "ЧЕЛЮСКИН. КАЮТ-КОМПАНИЯ – НОЧЬ")
+        # Look for ALL CAPS location names followed by period and sub-location
+        script_pattern = r'([А-ЯЁ][А-ЯЁ\s\-]+)\.\s*([А-ЯЁ][А-ЯЁ\s\-]+(?:\s*[–\-]\s*[А-ЯЁ\s]+)?)'
+        script_match = re.search(script_pattern, text)
+        if script_match:
+            object_location = script_match.group(1).strip()
+            sub_object = script_match.group(2).strip()
+            # Remove time of day from sub_object if present
+            sub_object = re.sub(r'\s*[–\-]\s*(ДЕНЬ|НОЧЬ|УТРО|ВЕЧЕР|ДЕНЬ|НОЧЬ|УТРО|ВЕЧЕР)', '', sub_object, flags=re.IGNORECASE)
+            return {
+                'object': object_location,
+                'sub_object': sub_object if sub_object else None
+            }
         
-        if location_parts and not object_location:
-            object_location = location_parts[0]
-            if len(location_parts) > 1:
-                sub_object = location_parts[1]
+        # Pattern for "Объект: X. Подобъект: Y" format (sometimes appears in parsed text)
+        explicit_pattern = r'Объект[:\s]+([^\.]+)\.?\s*(?:Подобъект[:\s]+([^\.]+))?'
+        explicit_match = re.search(explicit_pattern, text, re.IGNORECASE)
+        if explicit_match:
+            object_location = explicit_match.group(1).strip()
+            if explicit_match.group(2):
+                sub_object = explicit_match.group(2).strip()
+            return {
+                'object': object_location,
+                'sub_object': sub_object
+            }
+        
+        # Look for location keywords (ship names, room types, etc.)
+        text_upper = text.upper()
+        
+        # Ship/object names (common in scripts)
+        ship_patterns = [
+            r'\b(ЧЕЛЮСКИН|КОРАБЛЬ|СУДНО|ПАРОХОД)\b',
+            r'\b([А-ЯЁ]+)\s+(?:КОРАБЛЬ|СУДНО|ПАРОХОД)\b',
+        ]
+        
+        for pattern in ship_patterns:
+            match = re.search(pattern, text_upper)
+            if match:
+                object_location = match.group(1) if match.lastindex else match.group(0)
+                break
+        
+        # Room/location types (кают-компания, кабинет, палуба, etc.)
+        room_patterns = [
+            r'(кают-компания|каюткомпания|кабинет|палуба|радиорубка|машинное отделение)',
+            r'(офис|комната|зал|коридор|кафе|ресторан)',
+            r'(берег|лед|море|океан|пролив)',
+        ]
+        
+        for pattern in room_patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            if matches:
+                # If we have object, this is sub_object; otherwise it's object
+                if not object_location:
+                    object_location = matches[0].capitalize()
+                else:
+                    sub_object = matches[0].capitalize()
+                    break
+        
+        # Geographic locations (cities, regions) - but only if no other location found
+        if not object_location:
+            # Use Natasha NER for locations only as fallback
+            if self.natasha_available and self.segmenter and self.morph_tagger and self.ner_tagger:
+                try:
+                    doc = Doc(text)
+                    doc.segment(self.segmenter)
+                    doc.tag_morph(self.morph_tagger)
+                    doc.tag_ner(self.ner_tagger)
+                    
+                    # Filter out common false positives
+                    excluded = {'земли', 'земля', 'земле', 'землю', 'сома', 'сомову', 'сомова'}
+                    for span in doc.spans:
+                        if span.type == 'LOC' and span.text.lower() not in excluded:
+                            object_location = span.text
+                            break
+                except Exception as e:
+                    pass  # Silently fail if Natasha not available
         
         return {
-            'object': object_location,
-            'sub_object': sub_object
+            'object': object_location if object_location else None,
+            'sub_object': sub_object if sub_object else None
         }
     
     def extract_characters(self, text: str) -> List[str]:
