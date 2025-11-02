@@ -1,23 +1,17 @@
-"""
-Table generator module.
-Creates structured pre-production tables with customizable column presets.
-"""
 import pandas as pd
 import re
 from typing import Dict, List, Optional
 
-
 class TableGenerator:
-    """Generate pre-production tables from processed scenes."""
+    # Generate pre-production tables from processed scenes.
     
-    # Column presets - matching exact template structure
     PRESETS = {
         'basic': [
             'Серия',
             'Сцена',
             'Режим',
             'Инт / нат',
-            'Объект / Подобъект / Синопсис',
+            'Объект / Подобект / Синопсис',
             'Персонажи',
             'Реквизит / Игровой транспорт / Животное'
         ],
@@ -26,7 +20,7 @@ class TableGenerator:
             'Сцена',
             'Режим',
             'Инт / нат',
-            'Объект / Подобъект / Синопсис',
+            'Объект / Подобект / Синопсис',
             'Персонажи',
             'Массовка / Групповка',
             'Примечание / Графика',
@@ -40,7 +34,7 @@ class TableGenerator:
             'Сцена',
             'Режим',
             'Инт / нат',
-            'Объект / Подобъект / Синопсис',
+            'Объект / Подобект / Синопсис',
             'Персонажи',
             'Массовка / Групповка',
             'Примечание / Графика',
@@ -57,12 +51,9 @@ class TableGenerator:
         pass
     
     def map_element_to_column(self, column: str, scene_data: Dict) -> str:
-        """Map extracted elements to table columns."""
-        
-        # Combined column for Объект / Подобъект / Синопсис
-        if column == 'Объект / Подобъект / Синопсис':
+        # Combined column for Объект / Подобект / Синопсис
+        if column == 'Объект / Подобект / Синопсис':
             parts = []
-            # Safely handle None values before calling strip()
             obj_val = scene_data.get('location_object')
             obj = str(obj_val).strip() if obj_val is not None else ''
             sub_obj_val = scene_data.get('location_sub_object')
@@ -70,15 +61,10 @@ class TableGenerator:
             text_val = scene_data.get('text')
             synopsis_text = str(text_val).strip() if text_val else ''
             
-            # Clean up synopsis - remove scene headers and formatting
             if synopsis_text:
-                # Remove scene number patterns at the start
                 synopsis_text = re.sub(r'^[0-9\-А-ЯЁa-zA-Z]+[\.\)]\s*', '', synopsis_text)
-                # Remove script format headers like "ЧЕЛЮСКИН. КАЮТ-КОМПАНИЯ – НОЧЬ"
                 synopsis_text = re.sub(r'^[А-ЯЁ\s\-\.]+[–\-]\s*[А-ЯЁ]+\.?\s*', '', synopsis_text)
-                # Limit to first 300 characters and clean up
                 synopsis_text = synopsis_text[:300].strip()
-                # Remove extra whitespace
                 synopsis_text = re.sub(r'\s+', ' ', synopsis_text)
             
             if obj:
@@ -96,25 +82,13 @@ class TableGenerator:
             extras = scene_data.get('extras') or ''
             if extras:
                 parts.append(f"Массовка: {extras}")
-            # Групповка would need special extraction - leaving empty for now
             return '\n'.join(parts) if parts else ''
-        
-        # Combined column for Примечание / Графика
-        if column == 'Примечание / Графика':
-            # These would need special extraction from text
-            return ''
-        
-        # Combined column for Грим / Костюм
-        if column == 'Грим / Костюм':
-            # These would need special extraction from text
-            return ''
         
         # Combined column for Реквизит / Игровой транспорт / Животное
         if column == 'Реквизит / Игровой транспорт / Животное':
             parts = []
             props = scene_data.get('props') or ''
             vehicles = scene_data.get('vehicles') or ''
-            # Животное would need special extraction
             
             if props:
                 parts.append(f"Реквизит: {props}")
@@ -123,31 +97,12 @@ class TableGenerator:
             
             return '\n'.join(parts) if parts else ''
         
-        # Combined column for Администрация / Спецэффект
-        if column == 'Администрация / Спецэффект' or column == 'Спецэффект / Администрация':
-            parts = []
-            sfx = scene_data.get('special_effects') or ''
-            # Администрация would need special extraction
-            
-            if sfx:
-                parts.append(f"Спецэффект: {sfx}")
-            
-            return '\n'.join(parts) if parts else ''
-        
-        # Combined column for Операторская техника / LED-экраны
-        if column == 'Операторская техника / LED-экраны':
-            equipment = scene_data.get('equipment') or ''
-            if equipment:
-                return f"Операторская техника: {equipment}"
-            return ''
-        
-        # Individual column mappings - safely handle None values
+        # Individual column mappings
         series_num = scene_data.get('series_number') or ''
         scene_num = scene_data.get('scene_number') or ''
         time_of_day = scene_data.get('time_of_day') or ''
         int_nat = scene_data.get('interior_exterior') or ''
         
-        # Handle characters - can be list or string or None
         characters = scene_data.get('characters', '')
         if characters is None:
             characters = ''
@@ -162,42 +117,22 @@ class TableGenerator:
             'Режим': str(time_of_day) if time_of_day else '',
             'Инт / нат': str(int_nat) if int_nat else '',
             'Персонажи': characters,
-            'Декорация': '',  # Would need special extraction
-            'Каскадер / Трюк': '',  # Would need special extraction
+            'Декорация': '', 
+            'Каскадер / Трюк': '', 
         }
         
         return column_mapping.get(column, '')
     
-    def generate(
-        self,
-        scenes_data: List[Dict],
-        preset: str = 'basic',
-        custom_columns: Optional[List[str]] = None
-    ) -> pd.DataFrame:
-        """
-        Generate pre-production table.
-        
-        Args:
-            scenes_data: List of processed scene dictionaries
-            preset: Preset name ('basic', 'extended', 'full') or 'custom'
-            custom_columns: List of column names for custom preset
-        
-        Returns:
-            pandas DataFrame with the table
-        """
-        # Get columns based on preset
+    def generate(self, scenes_data: List[Dict], preset: str = 'basic', custom_columns: Optional[List[str]] = None) -> pd.DataFrame:
         if preset == 'custom' and custom_columns:
             columns = custom_columns.copy()
-            # Always ensure Серия column is included if processing multiple files
             if 'Серия' not in columns:
                 columns.insert(0, 'Серия')
         elif preset in self.PRESETS:
             columns = self.PRESETS[preset]
         else:
-            # Default to basic if preset not found
             columns = self.PRESETS['basic']
         
-        # Create rows for each scene
         rows = []
         for scene_data in scenes_data:
             row = {}
@@ -205,10 +140,9 @@ class TableGenerator:
                 row[column] = self.map_element_to_column(column, scene_data)
             rows.append(row)
         
-        # Create DataFrame
         df = pd.DataFrame(rows, columns=columns)
-        
         return df
+
     
     def export_csv(self, df: pd.DataFrame, file_path: str, encoding: str = 'utf-8-sig'):
         """
