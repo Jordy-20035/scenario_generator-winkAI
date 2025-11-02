@@ -8,6 +8,7 @@ import json
 import os
 from io import BytesIO
 import time
+import re
 
 # Page config
 st.set_page_config(
@@ -46,6 +47,48 @@ ALL_COLUMNS = [
     'Каскадер / Трюк', 'Музыка', 'Спецэффект', 'Спец. оборудование'
 ]
 
+
+def extract_series_number(filename: str) -> str:
+    """
+    Extract series number from filename.
+    Examples:
+    - ЧЕЛЮСКИН_1c_15.08_ФИНАЛ -> "1"
+    - ЧЕЛЮСКИН_2C_15.08_ФИНАЛ -> "2"
+    - ЧЕЛЮСКИН_ЗС_05.09_ФИНАЛ -> "3" (Cyrillic З = 3)
+    """
+    # Try to find number after underscore (pattern: _Xc or _XC)
+    patterns = [
+        r'_(\d+)[cCсС]',  # _1c, _2C, _1с, _2С
+        r'[_-](\d+)[._-]',  # _1., -1-, _1_
+        r'серия[_\s]*(\d+)',  # серия_1, серия 1
+        r'[Сс]ерия[_\s]*(\d+)',  # Серия_1, серия 1
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, filename, re.IGNORECASE)
+        if match:
+            return match.group(1)
+    
+    # Try Cyrillic number mapping (З = 3, Ч = 4, П = 5, Ш = 6, etc.)
+    cyrillic_to_num = {
+        'з': '3', 'З': '3',
+        'ч': '4', 'Ч': '4',
+        'п': '5', 'П': '5',
+        'ш': '6', 'Ш': '6',
+    }
+    
+    for cyr, num in cyrillic_to_num.items():
+        if cyr in filename:
+            return num
+    
+    # Default: try to extract first number from filename
+    numbers = re.findall(r'\d+', filename)
+    if numbers:
+        return numbers[0]
+    
+    # If nothing found, return "1" as default
+    return "1"
+
 st.title("🎬 Генератор препродакшн-таблиц для киносценариев")
 st.markdown("---")
 
@@ -80,59 +123,88 @@ with st.sidebar:
 tab1, tab2 = st.tabs(["📤 Загрузка и обработка", "📊 Результаты"])
 
 with tab1:
-    st.header("Загрузите сценарий")
+    st.header("Загрузите сценарии")
+    st.markdown("Вы можете загрузить несколько файлов одновременно для обработки всех серий.")
     
-    uploaded_file = st.file_uploader(
-        "Выберите файл сценария (PDF или DOCX)",
+    uploaded_files = st.file_uploader(
+        "Выберите файлы сценариев (PDF или DOCX)",
         type=['pdf', 'docx'],
-        help="Поддерживаются файлы объемом до 120 страниц"
+        accept_multiple_files=True,
+        help="Поддерживаются файлы объемом до 120 страниц каждый. Можно загрузить несколько файлов для обработки всех серий."
     )
     
-    if uploaded_file is not None:
+    if uploaded_files:
         # Show file info
-        file_size = len(uploaded_file.read())
-        uploaded_file.seek(0)  # Reset file pointer
+        st.subheader("📋 Загруженные файлы:")
+        file_info = []
+        for idx, file in enumerate(uploaded_files, 1):
+            file_size = len(file.read())
+            file.seek(0)  # Reset file pointer
+            file_info.append({
+                'index': idx,
+                'name': file.name,
+                'size': file_size / 1024
+            })
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.info(f"📄 Файл: {uploaded_file.name}")
-        with col2:
-            st.info(f"📏 Размер: {file_size / 1024:.2f} KB")
+        # Display files in a nice format
+        for info in file_info:
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.text(f"{info['index']}. {info['name']}")
+            with col2:
+                st.text(f"{info['size']:.2f} KB")
+        
+        total_size = sum(info['size'] for info in file_info)
+        st.info(f"📊 Всего файлов: {len(uploaded_files)} | Общий размер: {total_size:.2f} KB")
         
         # Process button
-        if st.button("🔄 Обработать сценарий", type="primary", use_container_width=True):
-            with st.spinner("Обработка сценария... Это может занять до 5 минут."):
+        if st.button("🔄 Обработать все сценарии", type="primary", use_container_width=True):
+            with st.spinner(f"Обработка {len(uploaded_files)} сценариев... Это может занять до 5 минут на файл."):
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
                 try:
-                    # Upload file to backend
-                    status_text.text("Загрузка файла...")
-                    progress_bar.progress(10)
+                    all_processed_scenes = []
                     
-                    files = {'file': (uploaded_file.name, uploaded_file, uploaded_file.type)}
-                    response = requests.post(f"{API_URL}/upload", files=files, timeout=300)
-                    
-                    progress_bar.progress(50)
-                    status_text.text("Извлечение элементов...")
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        st.session_state.processed_scenes = data['scenes']
+                    # Process each file
+                    for idx, uploaded_file in enumerate(uploaded_files):
+                        status_text.text(f"Обработка файла {idx + 1} из {len(uploaded_files)}: {uploaded_file.name}...")
+                        progress_bar.progress(idx / len(uploaded_files))
                         
-                        progress_bar.progress(100)
-                        status_text.text("✅ Обработка завершена!")
-                        time.sleep(1)
+                        # Upload file to backend
+                        files = {'file': (uploaded_file.name, uploaded_file, uploaded_file.type)}
+                        response = requests.post(f"{API_URL}/upload", files=files, timeout=300)
                         
-                        st.success(f"✅ Успешно обработано {data['total_scenes']} сцен!")
+                        if response.status_code == 200:
+                            data = response.json()
+                            scenes = data['scenes']
+                            
+                            # Extract series number from filename
+                            series_num = extract_series_number(uploaded_file.name)
+                            
+                            # Add series number to each scene
+                            for scene in scenes:
+                                scene['series_number'] = series_num
+                                all_processed_scenes.append(scene)
+                            
+                            status_text.text(f"✅ Файл {idx + 1} обработан: {len(scenes)} сцен")
+                        else:
+                            st.warning(f"⚠️ Ошибка при обработке {uploaded_file.name}: {response.text}")
+                    
+                    progress_bar.progress(100)
+                    status_text.text("✅ Все файлы обработаны!")
+                    
+                    if all_processed_scenes:
+                        st.session_state.processed_scenes = all_processed_scenes
+                        st.success(f"✅ Успешно обработано {len(all_processed_scenes)} сцен из {len(uploaded_files)} файлов!")
                         
                         # Generate table
-                        status_text.text("Генерация таблицы...")
+                        status_text.text("Генерация объединенной таблицы...")
                         table_preset = 'custom' if use_custom else st.session_state.selected_preset
                         table_response = requests.post(
                             f"{API_URL}/generate-table",
                             json={
-                                "scenes_data": st.session_state.processed_scenes,
+                                "scenes_data": all_processed_scenes,
                                 "preset": table_preset,
                                 "custom_columns": selected_columns if use_custom else None
                             }
@@ -145,11 +217,10 @@ with tab1:
                             st.rerun()
                         else:
                             st.error(f"Ошибка генерации таблицы: {table_response.text}")
-                    
                     else:
-                        st.error(f"Ошибка обработки: {response.text}")
-                        progress_bar.empty()
-                        status_text.empty()
+                        st.error("Не удалось обработать ни один файл.")
+                    
+                    time.sleep(1)
                 
                 except requests.exceptions.RequestException as e:
                     st.error(f"Ошибка соединения с API: {str(e)}")

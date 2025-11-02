@@ -12,7 +12,7 @@ class TableGenerator:
     # Column presets
     PRESETS = {
         'basic': [
-            'Серия',
+            'Серия',  # Always include series column for multi-series support
             'Сцена',
             'Режим',
             'Инт / нат',
@@ -21,7 +21,7 @@ class TableGenerator:
             'Реквизит'
         ],
         'extended': [
-            'Серия',
+            'Серия',  # Always include series column for multi-series support
             'Сцена',
             'Режим',
             'Инт / нат',
@@ -37,7 +37,7 @@ class TableGenerator:
             'Спец. оборудование'
         ],
         'full': [
-            'Серия',
+            'Серия',  # Always include series column for multi-series support
             'Сцена',
             'Режим',
             'Инт / нат',
@@ -66,7 +66,7 @@ class TableGenerator:
     def map_element_to_column(self, column: str, scene_data: Dict) -> str:
         """Map extracted elements to table columns."""
         column_mapping = {
-            'Серия': '',  # Usually needs manual input or extraction from scene number
+            'Серия': scene_data.get('series_number', ''),  # Extract from filename or user input
             'Сцена': scene_data.get('scene_number', ''),
             'Режим': scene_data.get('time_of_day', ''),
             'Инт / нат': scene_data.get('interior_exterior', ''),
@@ -109,7 +109,10 @@ class TableGenerator:
         """
         # Get columns based on preset
         if preset == 'custom' and custom_columns:
-            columns = custom_columns
+            columns = custom_columns.copy()
+            # Always ensure Серия column is included if processing multiple files
+            if 'Серия' not in columns:
+                columns.insert(0, 'Серия')
         elif preset in self.PRESETS:
             columns = self.PRESETS[preset]
         else:
