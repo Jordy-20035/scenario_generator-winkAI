@@ -1,1 +1,1 @@
-# README template
+# README
