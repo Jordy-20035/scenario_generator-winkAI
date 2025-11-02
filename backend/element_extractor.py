@@ -1,14 +1,10 @@
-"""
-Improved element extraction module based on scaffold approach.
-Uses keyword-based extraction with ALL CAPS character detection.
-"""
 import re
 from typing import Dict, List, Optional, Any
 
 # Regex for ALL CAPS detection (character names in scripts)
 ALLCAP_RE = re.compile(r'^[A-ZА-ЯЁ\s\-]{2,}$')
 
-# Keyword sets - extend these with larger gazetteers later
+# Keyword sets
 LOCATION_KEYWORDS = {
     "улица", "кабинет", "коридор", "зал", "кафе", "ресторан", "дом", 
     "площадь", "станция", "больница", "офис", "квартира", "комната",
@@ -50,12 +46,8 @@ EQUIPMENT_KEYWORDS = {
     "освещение", "подъемник", "кран", "хромакей", "хейзер"
 }
 
-
 class ElementExtractor:
     """Extract production elements using keyword-based approach."""
-    
-    def __init__(self):
-        pass
     
     def normalize_word(self, word: str) -> str:
         """Normalize word for matching."""
