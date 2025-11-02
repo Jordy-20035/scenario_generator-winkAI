@@ -9,54 +9,46 @@ from typing import List, Dict, Optional
 class TableGenerator:
     """Generate pre-production tables from processed scenes."""
     
-    # Column presets
+    # Column presets - matching exact template structure
     PRESETS = {
         'basic': [
-            'Серия',  # Always include series column for multi-series support
+            'Серия',
             'Сцена',
             'Режим',
             'Инт / нат',
-            'Объект',
+            'Объект / Подобъект / Синопсис',
             'Персонажи',
-            'Реквизит'
+            'Реквизит / Игровой транспорт / Животное'
         ],
         'extended': [
-            'Серия',  # Always include series column for multi-series support
+            'Серия',
             'Сцена',
             'Режим',
             'Инт / нат',
-            'Объект',
-            'Подобъект',
+            'Объект / Подобъект / Синопсис',
             'Персонажи',
-            'Массовка',
-            'Реквизит',
-            'Игровой транспорт',
-            'Грим',
-            'Костюм',
-            'Спецэффект',
-            'Спец. оборудование'
+            'Массовка / Групповка',
+            'Примечание / Графика',
+            'Грим / Костюм',
+            'Реквизит / Игровой транспорт / Животное',
+            'Декорация',
+            'Спецэффект / Администрация'
         ],
         'full': [
-            'Серия',  # Always include series column for multi-series support
+            'Серия',
             'Сцена',
             'Режим',
             'Инт / нат',
-            'Объект',
-            'Подобъект',
-            'Синопсис',
+            'Объект / Подобъект / Синопсис',
             'Персонажи',
-            'Массовка',
-            'Групповка',
-            'Грим',
-            'Костюм',
-            'Реквизит',
-            'Игровой транспорт',
+            'Массовка / Групповка',
+            'Примечание / Графика',
+            'Грим / Костюм',
+            'Реквизит / Игровой транспорт / Животное',
             'Декорация',
-            'Пиротехника',
             'Каскадер / Трюк',
-            'Музыка',
-            'Спецэффект',
-            'Спец. оборудование'
+            'Администрация / Спецэффект',
+            'Операторская техника / LED-экраны'
         ]
     }
     
@@ -65,27 +57,83 @@ class TableGenerator:
     
     def map_element_to_column(self, column: str, scene_data: Dict) -> str:
         """Map extracted elements to table columns."""
+        
+        # Combined column for Объект / Подобъект / Синопсис
+        if column == 'Объект / Подобъект / Синопсис':
+            parts = []
+            obj = scene_data.get('location_object', '')
+            sub_obj = scene_data.get('location_sub_object', '')
+            synopsis = scene_data.get('text', '')[:500] if 'text' in scene_data else ''  # First 500 chars
+            
+            if obj:
+                parts.append(f"Объект: {obj}")
+            if sub_obj:
+                parts.append(f"Подобъект: {sub_obj}")
+            if synopsis:
+                parts.append(f"Синопсис: {synopsis}")
+            
+            return '\n'.join(parts) if parts else ''
+        
+        # Combined column for Массовка / Групповка
+        if column == 'Массовка / Групповка':
+            parts = []
+            extras = scene_data.get('extras', '')
+            if extras:
+                parts.append(f"Массовка: {extras}")
+            # Групповка would need special extraction - leaving empty for now
+            return '\n'.join(parts) if parts else ''
+        
+        # Combined column for Примечание / Графика
+        if column == 'Примечание / Графика':
+            # These would need special extraction from text
+            return ''
+        
+        # Combined column for Грим / Костюм
+        if column == 'Грим / Костюм':
+            # These would need special extraction from text
+            return ''
+        
+        # Combined column for Реквизит / Игровой транспорт / Животное
+        if column == 'Реквизит / Игровой транспорт / Животное':
+            parts = []
+            props = scene_data.get('props', '')
+            vehicles = scene_data.get('vehicles', '')
+            # Животное would need special extraction
+            
+            if props:
+                parts.append(f"Реквизит: {props}")
+            if vehicles:
+                parts.append(f"Игровой транспорт: {vehicles}")
+            
+            return '\n'.join(parts) if parts else ''
+        
+        # Combined column for Администрация / Спецэффект
+        if column == 'Администрация / Спецэффект' or column == 'Спецэффект / Администрация':
+            parts = []
+            sfx = scene_data.get('special_effects', '')
+            # Администрация would need special extraction
+            
+            if sfx:
+                parts.append(f"Спецэффект: {sfx}")
+            
+            return '\n'.join(parts) if parts else ''
+        
+        # Combined column for Операторская техника / LED-экраны
+        if column == 'Операторская техника / LED-экраны':
+            equipment = scene_data.get('equipment', '')
+            if equipment:
+                return f"Операторская техника: {equipment}"
+            return ''
+        
+        # Individual column mappings
         column_mapping = {
-            'Серия': scene_data.get('series_number', ''),  # Extract from filename or user input
+            'Серия': scene_data.get('series_number', ''),
             'Сцена': scene_data.get('scene_number', ''),
             'Режим': scene_data.get('time_of_day', ''),
             'Инт / нат': scene_data.get('interior_exterior', ''),
-            'Объект': scene_data.get('location_object', ''),
-            'Подобъект': scene_data.get('location_sub_object', ''),
-            'Синопсис': scene_data.get('text', '')[:200] if 'text' in scene_data else '',  # First 200 chars
             'Персонажи': ', '.join(scene_data.get('characters', [])) if isinstance(scene_data.get('characters'), list) else scene_data.get('characters', ''),
-            'Массовка': scene_data.get('extras', ''),
-            'Групповка': '',  # May need special extraction
-            'Грим': '',  # Needs special extraction
-            'Костюм': '',  # Needs special extraction
-            'Реквизит': scene_data.get('props', ''),
-            'Игровой транспорт': scene_data.get('vehicles', ''),
-            'Декорация': '',  # May need special extraction
-            'Пиротехника': '',  # May need special extraction
-            'Каскадер / Трюк': '',  # May need special extraction
-            'Музыка': '',  # May need special extraction
-            'Спецэффект': scene_data.get('special_effects', ''),
-            'Спец. оборудование': scene_data.get('equipment', ''),
+            'Декорация': '',  # Would need special extraction
+            'Каскадер / Трюк': '',  # Would need special extraction
         }
         
         return column_mapping.get(column, '')

@@ -39,12 +39,22 @@ PRESETS = {
     'full': 'Полный'
 }
 
-# All available columns
+# All available columns - matching template structure
 ALL_COLUMNS = [
-    'Серия', 'Сцена', 'Режим', 'Инт / нат', 'Объект', 'Подобъект',
-    'Синопсис', 'Персонажи', 'Массовка', 'Групповка', 'Грим', 'Костюм',
-    'Реквизит', 'Игровой транспорт', 'Декорация', 'Пиротехника',
-    'Каскадер / Трюк', 'Музыка', 'Спецэффект', 'Спец. оборудование'
+    'Серия',
+    'Сцена',
+    'Режим',
+    'Инт / нат',
+    'Объект / Подобъект / Синопсис',
+    'Персонажи',
+    'Массовка / Групповка',
+    'Примечание / Графика',
+    'Грим / Костюм',
+    'Реквизит / Игровой транспорт / Животное',
+    'Декорация',
+    'Каскадер / Трюк',
+    'Администрация / Спецэффект',
+    'Операторская техника / LED-экраны'
 ]
 
 
@@ -111,7 +121,16 @@ with st.sidebar:
         selected_columns = None
     else:
         st.subheader("Выберите столбцы")
-        default_cols = st.session_state.selected_columns if st.session_state.selected_columns else ALL_COLUMNS[:7]
+        # Default to basic preset columns for custom selection
+        default_cols = st.session_state.selected_columns if st.session_state.selected_columns else [
+            'Серия',
+            'Сцена',
+            'Режим',
+            'Инт / нат',
+            'Объект / Подобъект / Синопсис',
+            'Персонажи',
+            'Реквизит / Игровой транспорт / Животное'
+        ]
         selected_columns = st.multiselect(
             "Доступные столбцы",
             options=ALL_COLUMNS,
