@@ -48,8 +48,15 @@ docker-compose up --build
 pip install -r requirements.txt
 ```
 
-2. Загрузите необходимые модели:
+2. Загрузите необходимые модели (после установки зависимостей!):
 ```bash
+# Windows
+install_models.bat
+
+# Linux/Mac
+chmod +x install_models.sh && ./install_models.sh
+
+# Или вручную:
 python -m spacy download ru_core_news_sm
 python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords')"
 ```

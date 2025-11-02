@@ -6,11 +6,24 @@ makeup, costumes, special effects, stunts, pyrotechnics, special equipment.
 import re
 import spacy
 from typing import Dict, List, Optional
-from natasha import (
-    Segmenter, MorphVocab, NewsEmbedding, NewsMorphTagger,
-    NewsNERTagger, Doc
-)
-import razdel
+
+# Try to import natasha - make it optional
+try:
+    from natasha import (
+        Segmenter, MorphVocab, NewsEmbedding, NewsMorphTagger,
+        NewsNERTagger, Doc
+    )
+    NATASHA_AVAILABLE = True
+except ImportError:
+    NATASHA_AVAILABLE = False
+    print("Warning: natasha not available. Some features may be limited.")
+
+try:
+    import razdel
+    RAZDEL_AVAILABLE = True
+except ImportError:
+    RAZDEL_AVAILABLE = False
+    print("Warning: razdel not available.")
 
 
 class ElementExtractor:
@@ -25,11 +38,26 @@ class ElementExtractor:
             self.nlp = None
         
         # Initialize Natasha components for better Russian NLP
-        self.segmenter = Segmenter()
-        self.morph_vocab = MorphVocab()
-        emb = NewsEmbedding()
-        self.morph_tagger = NewsMorphTagger(emb)
-        self.ner_tagger = NewsNERTagger(emb)
+        self.natasha_available = NATASHA_AVAILABLE
+        if NATASHA_AVAILABLE:
+            try:
+                self.segmenter = Segmenter()
+                self.morph_vocab = MorphVocab()
+                emb = NewsEmbedding()
+                self.morph_tagger = NewsMorphTagger(emb)
+                self.ner_tagger = NewsNERTagger(emb)
+            except Exception as e:
+                print(f"Warning: Failed to initialize Natasha: {e}")
+                self.natasha_available = False
+                self.segmenter = None
+                self.morph_vocab = None
+                self.morph_tagger = None
+                self.ner_tagger = None
+        else:
+            self.segmenter = None
+            self.morph_vocab = None
+            self.morph_tagger = None
+            self.ner_tagger = None
         
         # Keywords and patterns for extraction
         self._init_keywords()
@@ -107,16 +135,21 @@ class ElementExtractor:
     
     def extract_location(self, text: str) -> Dict[str, Optional[str]]:
         """Extract location (object and sub-object) from scene text."""
-        # Use Natasha for NER to find location names
-        doc = Doc(text)
-        doc.segment(self.segmenter)
-        doc.tag_morph(self.morph_tagger)
-        doc.tag_ner(self.ner_tagger)
-        
         locations = []
-        for span in doc.spans:
-            if span.type == 'LOC':  # Location entity
-                locations.append(span.text)
+        
+        # Use Natasha for NER to find location names if available
+        if self.natasha_available and self.segmenter and self.morph_tagger and self.ner_tagger:
+            try:
+                doc = Doc(text)
+                doc.segment(self.segmenter)
+                doc.tag_morph(self.morph_tagger)
+                doc.tag_ner(self.ner_tagger)
+                
+                for span in doc.spans:
+                    if span.type == 'LOC':  # Location entity
+                        locations.append(span.text)
+            except Exception as e:
+                print(f"Warning: Natasha NER failed: {e}")
         
         # Also look for location keywords
         text_lower = text.lower()
@@ -162,15 +195,19 @@ class ElementExtractor:
                 if ent.label_ == "PER":  # Person entity
                     characters.add(ent.text)
         
-        # Also use Natasha NER
-        doc = Doc(text)
-        doc.segment(self.segmenter)
-        doc.tag_morph(self.morph_tagger)
-        doc.tag_ner(self.ner_tagger)
-        
-        for span in doc.spans:
-            if span.type == 'PER':  # Person entity
-                characters.add(span.text)
+        # Also use Natasha NER if available
+        if self.natasha_available and self.segmenter and self.morph_tagger and self.ner_tagger:
+            try:
+                doc = Doc(text)
+                doc.segment(self.segmenter)
+                doc.tag_morph(self.morph_tagger)
+                doc.tag_ner(self.ner_tagger)
+                
+                for span in doc.spans:
+                    if span.type == 'PER':  # Person entity
+                        characters.add(span.text)
+            except Exception as e:
+                print(f"Warning: Natasha NER failed: {e}")
         
         # Pattern-based extraction (capitalized names at sentence start)
         matches = self.character_pattern.findall(text)

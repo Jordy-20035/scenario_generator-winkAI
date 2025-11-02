@@ -45,12 +45,19 @@ pip install -r requirements.txt
 
 4. **Загрузите NLP модели**:
 ```bash
-# spaCy русская модель
-python -m spacy download ru_core_news_sm
+# Windows
+install_models.bat
 
-# NLTK данные
+# Linux/Mac
+chmod +x install_models.sh
+./install_models.sh
+
+# Или вручную:
+python -m spacy download ru_core_news_sm
 python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords')"
 ```
+
+**Важно**: Модели нужно устанавливать ПОСЛЕ установки requirements.txt, так как они требуют установленного spacy и nltk.
 
 5. **Создайте необходимые директории**:
 ```bash
