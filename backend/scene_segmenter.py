@@ -1,113 +1,90 @@
 """
-Scene segmentation module.
-Detects scene numbers and splits script text into individual scenes.
+Improved scene segmentation module based on scaffold approach.
+Uses simpler, more reliable regex patterns.
 """
 import re
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 
 class SceneSegmenter:
-    """Segment script text into individual scenes."""
+    """Segment script text into individual scenes using improved regex."""
     
-    def __init__(self):
-        # Patterns for scene number detection (Russian scripts)
-        # Examples: "СЦЕНА 1", "1.", "Сцена 2-А", "3/П", "СЦЕНА 22-Б", "11-N2", "1-11N2", "15-N6-04"
-        self.scene_patterns = [
-            # Explicit "СЦЕНА" or "Сцена" prefix
-            r'СЦЕНА\s+(\d+(?:[-А-ЯЁ]?\d*[А-ЯЁ]?\d*(?:[-\.]?[А-ЯЁ]?\d+)?)?)',  # СЦЕНА 11-N2, СЦЕНА 1-11N2
-            r'Сцена\s+(\d+(?:[-А-ЯЁ]?\d*[А-ЯЁ]?\d*(?:[-\.]?[А-ЯЁ]?\d+)?)?)',  # Сцена 11-N2
-            # Complex scene formats at start of line: 11-N2, 1-11N2, 15-N6-04
-            r'^\s*(\d+[-А-ЯЁ]?\d*[А-ЯЁ]?\d*(?:[-А-ЯЁ]?\d+)*(?:[-\.]\d+)?)\s*[\.\)]\s*',  # 1-11N2., 11-N2., 15-N6-04.
-            r'^\s*(\d+[-А-ЯЁ\.]+\w*(?:-\d+)?)\s*[\.\)]?\s*',  # 1-11N2, 11-N2, 15-N6-04
-            # Format with N: 11N2, 15N6 -> becomes 11-N2, 15-N6 (if we want to standardize)
-            r'^(\d+)[Nn](\d+)\s*',  # 11N2, 15N6 -> will be formatted as 11-N2, 15-N6
-            # Format with slash: 3/П
-            r'^(\d+)[/](\w+)\s*',  # 3/П
-            # Simple formats: 1., 22-Б.
-            r'^\s*(\d+[А-Я]?|\d+[-А-ЯЁ]+)[\.\)]\s*',  # 1., 22-Б.
-            # Standalone number (last resort)
-            r'^\s*(\d+)\s*$',  # Standalone number on line
+    # Single comprehensive pattern for scene headers
+    SCENE_HDR_RE = re.compile(
+        r"^\s*(СЦЕНА|Сцена|SCENE|INT\.|EXT\.|INT/EXT|INT\/EXT|\d{1,4}[\.\-А-ЯЁ]?)",
+        re.IGNORECASE | re.MULTILINE
+    )
+    
+    def extract_scene_number(self, header_line: str) -> Optional[str]:
+        """Extract scene number from header line."""
+        # Try complex formats first
+        patterns = [
+            r'(\d+[-А-ЯЁ]?\d*[А-ЯЁ]?\d*(?:[-А-ЯЁ]?\d+)*(?:[-\.]\d+)?)',  # 1-11N2, 11-N2, 15-N6-04
+            r'(\d+)[Nn](\d+)',  # 11N2 -> returns as 11-N2
+            r'(\d+)[/](\w+)',  # 3/П
+            r'(\d+[А-Я]?|\d+[-А-ЯЁ]+)',  # 1, 22-Б
+            r'(\d+)',  # Simple number
         ]
         
-    def extract_scene_number(self, text: str) -> Optional[str]:
-        """
-        Extract scene number from text line.
-        Preserves full scene identifier format (e.g., "11-N2", "1-11N2", "15-N6-04").
-        
-        Returns:
-            Scene number string or None
-        """
-        text = text.strip()
-        
-        for pattern in self.scene_patterns:
-            match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+        for pattern in patterns:
+            match = re.search(pattern, header_line)
             if match:
-                # Handle patterns with groups (like 3/П or 11N2)
                 if len(match.groups()) > 1:
-                    # Format with slash: 3/П -> 3/П
-                    if '/' in pattern or '[/]' in pattern:
-                        return f"{match.group(1)}/{match.group(2)}"
-                    # Format with N: 11N2 -> 11-N2 (standardize)
-                    elif '[Nn]' in pattern:
+                    if 'N' in pattern or 'n' in pattern:
                         return f"{match.group(1)}-N{match.group(2)}"
                     else:
-                        return f"{match.group(1)}-{match.group(2)}"
-                else:
-                    scene_num = match.group(1) if match.group(1) else match.group(0)
-                    # Clean up - remove trailing punctuation that might have been captured
-                    scene_num = scene_num.rstrip('.,)')
-                    return scene_num
+                        return f"{match.group(1)}/{match.group(2)}"
+                return match.group(1)
         
         return None
     
-    def segment(self, text: str) -> List[Dict[str, str]]:
+    def segment(self, text: str) -> List[Dict[str, Any]]:
         """
-        Segment script text into individual scenes.
-        
-        Args:
-            text: Full script text
+        Segment text into scenes using regex of common script headings.
         
         Returns:
-            List of dictionaries with 'scene_number' and 'text' keys
+            List of dicts: {scene_number, text, header}
         """
+        # Find all scene heading positions
+        headings = [(m.start(), m.group(0)) for m in self.SCENE_HDR_RE.finditer(text)]
+        
         scenes = []
-        lines = text.split('\n')
         
-        current_scene = None
-        current_text = []
+        if not headings:
+            # Fallback: split into paragraphs/blocks by double newlines
+            parts = [p.strip() for p in text.split('\n\n') if p.strip()]
+            for i, p in enumerate(parts):
+                scene_num = self.extract_scene_number(p.split('\n')[0]) or str(i + 1)
+                scenes.append({
+                    'scene_number': scene_num,
+                    'header': p.split('\n')[0] if p.split('\n') else '',
+                    'text': p
+                })
+            return scenes
         
-        for line in lines:
-            scene_num = self.extract_scene_number(line)
+        # Process each scene
+        for i, (pos, hdr) in enumerate(headings):
+            start = pos
+            end = headings[i + 1][0] if i + 1 < len(headings) else len(text)
             
-            if scene_num:
-                # Save previous scene if exists
-                if current_scene is not None:
-                    scenes.append({
-                        'scene_number': current_scene,
-                        'text': '\n'.join(current_text).strip()
-                    })
-                
-                # Start new scene
-                current_scene = scene_num
-                current_text = [line]
+            seg_text = text[start:end].strip()
+            
+            # Get first line as header
+            first_line = seg_text.splitlines()[0] if seg_text.splitlines() else hdr
+            
+            # Extract scene number
+            scene_num = self.extract_scene_number(first_line) or str(i + 1)
+            
+            # Remove header from text if it's just the scene marker
+            if seg_text.startswith(hdr):
+                scene_text = seg_text[len(hdr):].strip()
             else:
-                # Add line to current scene
-                if current_scene is not None:
-                    current_text.append(line)
-                # If no scene started yet, might be header/preface - skip or accumulate
-        
-        # Don't forget the last scene
-        if current_scene is not None:
+                scene_text = seg_text
+            
             scenes.append({
-                'scene_number': current_scene,
-                'text': '\n'.join(current_text).strip()
-            })
-        
-        # If no scenes found, treat entire text as one scene
-        if not scenes:
-            scenes.append({
-                'scene_number': '1',
-                'text': text.strip()
+                'scene_number': scene_num,
+                'header': first_line.strip(),
+                'text': scene_text
             })
         
         return scenes
