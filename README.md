@@ -180,4 +180,6 @@ python -m spacy download ru_core_news_sm
 
 ## 👥 Авторы
 
-Команда разработки scenario_generator-winkAI
+Manye Jordana
+
+Команда разработки DiverCity
