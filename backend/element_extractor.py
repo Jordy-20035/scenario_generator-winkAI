@@ -27,7 +27,14 @@ PROP_KEYWORDS = {
     "автомобиль", "машина", "велосипед", "стол", "стул", "часы", 
     "пистолет", "телефон", "радио", "инструмент", "инструменты",
     "ноутбук", "компьютер", "деньги", "кошелек", "ключи", 
-    "документы", "книга", "сигареты", "кольцо", "ружье"
+    "документы", "книга", "сигареты", "кольцо", "ружье",
+    "поднос", "шкура", "потефон", "бутылки", "стаканы", "набросок",
+    "фотоаппарат", "журнал", "докладная", "пианино", "накладка"
+}
+
+ANIMAL_KEYWORDS = {
+    "животное", "собака", "кошка", "лошадь", "животные",
+    "собаки", "кошки", "звездочка"
 }
 
 VEHICLE_KEYWORDS = {
@@ -36,9 +43,12 @@ VEHICLE_KEYWORDS = {
 }
 
 SFX_KEYWORDS = {
-    "взрыв", "пожар", "касание", "трюк", "каскадёр", 
-    "пиротехника", "эффект", "CGI", "свет", "дым", "ветер",
-    "снег", "молния", "дождь"
+    "взрыв", "пожар", "касание", "эффект", "CGI", "свет", "дым", "ветер",
+    "снег", "молния", "дождь", "пиротехника"
+}
+
+STUNT_KEYWORDS = {
+    "трюк", "каскадёр", "каскадер", "трюки"
 }
 
 EQUIPMENT_KEYWORDS = {
@@ -178,8 +188,13 @@ class ElementExtractor:
         props = self.extract_keywords_from_set(text, PROP_KEYWORDS)
         vehicles = self.extract_keywords_from_set(text, VEHICLE_KEYWORDS)
         sfx = self.extract_keywords_from_set(text, SFX_KEYWORDS)
+        stunt_keywords = self.extract_keywords_from_set(text, STUNT_KEYWORDS)
+        animals = self.extract_keywords_from_set(text, ANIMAL_KEYWORDS)
         equipment = self.extract_keywords_from_set(text, EQUIPMENT_KEYWORDS)
         has_mass = bool(self.extract_keywords_from_set(text, MASS_KEYWORDS))
+        
+        # Extract massovka info
+        mass_info = ', '.join(self.extract_keywords_from_set(text, MASS_KEYWORDS)) if has_mass else None
         
         return {
             'time_of_day': self.extract_time_of_day(text),
@@ -187,10 +202,12 @@ class ElementExtractor:
             'location_object': location['object'],
             'location_sub_object': location['sub_object'],
             'characters': main_chars + secondary_chars,  # Combined list
-            'extras': f"Массовка: {', '.join(self.extract_keywords_from_set(text, MASS_KEYWORDS))}" if has_mass else None,
+            'extras': mass_info,  # Just the keywords, no prefix
             'props': ', '.join(props) if props else None,
             'vehicles': ', '.join(vehicles) if vehicles else None,
             'special_effects': ', '.join(sfx) if sfx else None,
+            'stunt': ', '.join(stunt_keywords) if stunt_keywords else None,
+            'animals': ', '.join(animals) if animals else None,
             'equipment': ', '.join(equipment) if equipment else None,
         }
 

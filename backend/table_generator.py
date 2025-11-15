@@ -3,47 +3,56 @@ import re
 from typing import Dict, List, Optional
 
 class TableGenerator:
-    # Generate pre-production tables from processed scenes.
+    """Generate pre-production tables from processed scenes."""
     
+    # Column presets - matching updated template structure
     PRESETS = {
         'basic': [
             'Серия',
             'Сцена',
             'Режим',
             'Инт / нат',
-            'Объект / Подобект / Синопсис',
+            'Объект',
+            'Подобъект',
+            'Синопсис',
             'Персонажи',
-            'Реквизит / Игровой транспорт / Животное'
+            'Реквизит'
         ],
         'extended': [
             'Серия',
             'Сцена',
             'Режим',
             'Инт / нат',
-            'Объект / Подобект / Синопсис',
+            'Объект',
+            'Подобъект',
+            'Синопсис',
+            'Время года',
             'Персонажи',
-            'Массовка / Групповка',
-            'Примечание / Графика',
-            'Грим / Костюм',
-            'Реквизит / Игровой транспорт / Животное',
-            'Декорация',
-            'Спецэффект / Администрация'
+            'Массовка',
+            'Грим',
+            'Костюм',
+            'Реквизит',
+            'Игровой транспорт',
+            'Трюк',
+            'Животные'
         ],
         'full': [
             'Серия',
             'Сцена',
             'Режим',
             'Инт / нат',
-            'Объект / Подобект / Синопсис',
+            'Объект',
+            'Подобъект',
+            'Синопсис',
+            'Время года',
             'Персонажи',
-            'Массовка / Групповка',
-            'Примечание / Графика',
-            'Грим / Костюм',
-            'Реквизит / Игровой транспорт / Животное',
-            'Декорация',
-            'Каскадер / Трюк',
-            'Администрация / Спецэффект',
-            'Операторская техника / LED-экраны'
+            'Массовка',
+            'Грим',
+            'Костюм',
+            'Реквизит',
+            'Игровой транспорт',
+            'Трюк',
+            'Животные'
         ]
     }
     
@@ -51,58 +60,37 @@ class TableGenerator:
         pass
     
     def map_element_to_column(self, column: str, scene_data: Dict) -> str:
-        # Combined column for Объект / Подобект / Синопсис
-        if column == 'Объект / Подобект / Синопсис':
-            parts = []
-            obj_val = scene_data.get('location_object')
-            obj = str(obj_val).strip() if obj_val is not None else ''
-            sub_obj_val = scene_data.get('location_sub_object')
-            sub_obj = str(sub_obj_val).strip() if sub_obj_val is not None else ''
-            text_val = scene_data.get('text')
-            synopsis_text = str(text_val).strip() if text_val else ''
-            
-            if synopsis_text:
-                synopsis_text = re.sub(r'^[0-9\-А-ЯЁa-zA-Z]+[\.\)]\s*', '', synopsis_text)
-                synopsis_text = re.sub(r'^[А-ЯЁ\s\-\.]+[–\-]\s*[А-ЯЁ]+\.?\s*', '', synopsis_text)
-                synopsis_text = synopsis_text[:300].strip()
-                synopsis_text = re.sub(r'\s+', ' ', synopsis_text)
-            
-            if obj:
-                parts.append(f"Объект: {obj}")
-            if sub_obj:
-                parts.append(f"Подобъект: {sub_obj}")
-            if synopsis_text:
-                parts.append(f"Синопсис: {synopsis_text}")
-            
-            return '\n'.join(parts) if parts else ''
+        """Map extracted elements to table columns."""
         
-        # Combined column for Массовка / Групповка
-        if column == 'Массовка / Групповка':
-            parts = []
-            extras = scene_data.get('extras') or ''
-            if extras:
-                parts.append(f"Массовка: {extras}")
-            return '\n'.join(parts) if parts else ''
+        # Safely handle None values
+        def safe_str(value):
+            if value is None:
+                return ''
+            return str(value).strip() if value else ''
         
-        # Combined column for Реквизит / Игровой транспорт / Животное
-        if column == 'Реквизит / Игровой транспорт / Животное':
-            parts = []
-            props = scene_data.get('props') or ''
-            vehicles = scene_data.get('vehicles') or ''
-            
-            if props:
-                parts.append(f"Реквизит: {props}")
-            if vehicles:
-                parts.append(f"Игровой транспорт: {vehicles}")
-            
-            return '\n'.join(parts) if parts else ''
+        # Basic fields
+        series_num = safe_str(scene_data.get('series_number'))
+        scene_num = safe_str(scene_data.get('scene_number'))
+        time_of_day = safe_str(scene_data.get('time_of_day'))
+        int_nat = safe_str(scene_data.get('interior_exterior'))
         
-        # Individual column mappings
-        series_num = scene_data.get('series_number') or ''
-        scene_num = scene_data.get('scene_number') or ''
-        time_of_day = scene_data.get('time_of_day') or ''
-        int_nat = scene_data.get('interior_exterior') or ''
+        # Location columns (now separate)
+        obj_val = scene_data.get('location_object')
+        obj = safe_str(obj_val)
+        sub_obj_val = scene_data.get('location_sub_object')
+        sub_obj = safe_str(sub_obj_val)
         
+        # Synopsis (now separate column)
+        text_val = scene_data.get('text')
+        synopsis_text = safe_str(text_val)
+        if synopsis_text:
+            # Clean up synopsis - remove scene headers and formatting
+            synopsis_text = re.sub(r'^[0-9\-А-ЯЁa-zA-Z]+[\.\)]\s*', '', synopsis_text)
+            synopsis_text = re.sub(r'^[А-ЯЁ\s\-\.]+[–\-]\s*[А-ЯЁ]+\.?\s*', '', synopsis_text)
+            synopsis_text = synopsis_text[:300].strip()
+            synopsis_text = re.sub(r'\s+', ' ', synopsis_text)
+        
+        # Characters
         characters = scene_data.get('characters', '')
         if characters is None:
             characters = ''
@@ -111,21 +99,57 @@ class TableGenerator:
         else:
             characters = str(characters) if characters else ''
         
+        # Extras/Massovka (extract from extras field, remove prefix if present)
+        extras = scene_data.get('extras') or ''
+        if extras.startswith('Массовка:'):
+            extras = extras.replace('Массовка:', '').strip()
+        elif extras.startswith('Массовка'):
+            extras = extras.replace('Массовка', '').strip()
+        
+        # Props, vehicles (now separate columns)
+        props = safe_str(scene_data.get('props'))
+        vehicles = safe_str(scene_data.get('vehicles'))
+        
+        # Animals - use extracted animals field
+        animals = safe_str(scene_data.get('animals'))
+        
+        # Stunt/Trick - use extracted stunt field
+        stunt = safe_str(scene_data.get('stunt'))
+        
+        # Makeup and Costume (will need special extraction later)
+        makeup = ''
+        costume = ''
+        
+        # Time of year (new column - will need special extraction)
+        time_of_year = ''
+        
         column_mapping = {
-            'Серия': str(series_num) if series_num else '',
-            'Сцена': str(scene_num) if scene_num else '',
-            'Режим': str(time_of_day) if time_of_day else '',
-            'Инт / нат': str(int_nat) if int_nat else '',
+            'Серия': series_num,
+            'Сцена': scene_num,
+            'Режим': time_of_day,
+            'Инт / нат': int_nat,
+            'Объект': obj,
+            'Подобъект': sub_obj,
+            'Синопсис': synopsis_text,
+            'Время года': time_of_year,
             'Персонажи': characters,
-            'Декорация': '', 
-            'Каскадер / Трюк': '', 
+            'Массовка': extras,
+            'Грим': makeup,
+            'Костюм': costume,
+            'Реквизит': props,
+            'Игровой транспорт': vehicles,
+            'Трюк': stunt,
+            'Животные': animals,
         }
         
         return column_mapping.get(column, '')
     
     def generate(self, scenes_data: List[Dict], preset: str = 'basic', custom_columns: Optional[List[str]] = None) -> pd.DataFrame:
+        """Generate pre-production table."""
+        # Get columns based on preset
         if preset == 'custom' and custom_columns:
             columns = custom_columns.copy()
+            # Always ensure Серия column is included first
             if 'Серия' not in columns:
                 columns.insert(0, 'Серия')
         elif preset in self.PRESETS:
@@ -133,6 +157,7 @@ class TableGenerator:
         else:
             columns = self.PRESETS['basic']
         
+        # Create rows for each scene
         rows = []
         for scene_data in scenes_data:
             row = {}
@@ -140,28 +165,14 @@ class TableGenerator:
                 row[column] = self.map_element_to_column(column, scene_data)
             rows.append(row)
         
+        # Create DataFrame
         df = pd.DataFrame(rows, columns=columns)
         return df
-
     
     def export_csv(self, df: pd.DataFrame, file_path: str, encoding: str = 'utf-8-sig'):
-        """
-        Export table to CSV.
-        
-        Args:
-            df: DataFrame to export
-            file_path: Output file path
-            encoding: File encoding (default: utf-8-sig for Excel compatibility)
-        """
+        """Export table to CSV."""
         df.to_csv(file_path, index=False, encoding=encoding)
     
     def export_xlsx(self, df: pd.DataFrame, file_path: str):
-        """
-        Export table to XLSX.
-        
-        Args:
-            df: DataFrame to export
-            file_path: Output file path
-        """
+        """Export table to XLSX."""
         df.to_excel(file_path, index=False, engine='openpyxl')
-
