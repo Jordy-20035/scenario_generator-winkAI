@@ -177,10 +177,8 @@ python -m spacy download ru_core_news_sm
 
 ## 📝 Лицензия
 
-Проект разработан для конкурса winkAI.
+Проект разработан для хакатона winkAI challenge.
 
-## 👥 Авторы
+## 👥 Автор
 
-Manye Jordana
-
-Команда разработки DiverCity
+Manye Jordana - DiverCity
