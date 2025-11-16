@@ -45,6 +45,8 @@ docker-compose up --build
 
 ### Запуск без Docker
 
+Для подробной пошаговой инструкции см. файл `INSTALLATION.md`.
+
 1. Установите зависимости:
 ```bash
 pip install -r requirements.txt
